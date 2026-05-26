@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>日本 TikTok Shop 末售價計算機</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700;900&family=Noto+Sans+TC:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#f4f0e7;--paper-2:#fbf9f3;--ink:#1c1a17;--ink-soft:#6a655c;
+    --line:#e2dccf;--vermilion:#d9442f;--vermilion-deep:#b8341f;--gold:#b08d3e;
+    --green:#3f7a4f;--shadow:0 1px 2px rgba(28,26,23,.05),0 12px 30px -12px rgba(28,26,23,.22);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{font-family:"Noto Sans TC",sans-serif;background:var(--paper);color:var(--ink);
+    line-height:1.6;min-height:100vh;
+    background-image:radial-gradient(circle at 1px 1px,rgba(28,26,23,.04) 1px,transparent 0);
+    background-size:22px 22px;}
+  .wrap{max-width:1080px;margin:0 auto;padding:40px 22px 80px}
+
+  header{margin-bottom:26px}
+  .kicker{display:inline-flex;align-items:center;gap:8px;font-family:"DM Mono",monospace;
+    font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--vermilion);margin-bottom:14px}
+  .kicker::before{content:"";width:26px;height:1.5px;background:var(--vermilion)}
+  h1{font-family:"Noto Serif TC",serif;font-weight:900;font-size:clamp(28px,5vw,44px);line-height:1.15;letter-spacing:-.01em}
+  h1 .jp{color:var(--vermilion)}
+  header p{color:var(--ink-soft);margin-top:10px;max-width:620px;font-size:15px}
+
+  .tabs{display:inline-flex;background:var(--paper-2);border:1px solid var(--line);
+    border-radius:13px;padding:5px;margin-bottom:24px;box-shadow:var(--shadow)}
+  .tabs button{border:none;background:none;font-family:"Noto Serif TC",serif;font-weight:700;
+    font-size:15px;padding:9px 22px;border-radius:9px;cursor:pointer;color:var(--ink-soft);transition:.18s}
+  .tabs button.on{background:var(--ink);color:#fbf9f3}
+
+  .grid{display:grid;grid-template-columns:340px 1fr;gap:24px;align-items:start}
+  @media(max-width:840px){.grid{grid-template-columns:1fr}}
+
+  .card{background:var(--paper-2);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow)}
+  .pad{padding:24px 24px}
+  .panel-title{font-family:"Noto Serif TC",serif;font-weight:700;font-size:16px;display:flex;align-items:center;gap:9px;margin-bottom:14px}
+  .panel-title .num{font-family:"DM Mono",monospace;font-size:12px;color:#fff;background:var(--ink);
+    width:22px;height:22px;border-radius:50%;display:grid;place-items:center;flex:none}
+
+  .field{margin-bottom:16px}
+  .field:last-child{margin-bottom:0}
+  .field label{display:block;font-size:13px;font-weight:500;margin-bottom:7px}
+  .field label .tag{color:var(--ink-soft);font-weight:400;font-size:12px}
+  .input-row{display:flex;align-items:stretch}
+  .prefix,.suffix{display:grid;place-items:center;padding:0 12px;background:#efeadf;
+    border:1.5px solid var(--line);font-family:"DM Mono",monospace;font-size:13px;color:var(--ink-soft);white-space:nowrap}
+  .prefix{border-right:none;border-radius:11px 0 0 11px}
+  .suffix{border-left:none;border-radius:0 11px 11px 0}
+  input[type=number]{flex:1;width:100%;border:1.5px solid var(--line);background:#fff;padding:11px 12px;
+    font-family:"DM Mono",monospace;font-size:15px;color:var(--ink);outline:none;-moz-appearance:textfield;min-width:0}
+  input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .input-row input{border-radius:0}
+  .input-row.has-prefix input{border-radius:0 11px 11px 0}
+  .input-row.has-suffix input{border-radius:11px 0 0 11px}
+  .input-row.has-prefix.has-suffix input{border-radius:0}
+  input:focus{border-color:var(--vermilion);box-shadow:0 0 0 3px rgba(217,68,47,.13);z-index:1}
+  .seg{display:flex;border:1.5px solid var(--line);border-radius:11px;overflow:hidden;background:#fff}
+  .seg button{flex:1;border:none;background:none;padding:9px 4px;cursor:pointer;font-family:"Noto Sans TC";
+    font-size:12.5px;color:var(--ink-soft);transition:.18s;font-weight:500}
+  .seg button.on{background:var(--ink);color:#fff}
+  .twocol{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .divider{height:1px;background:var(--line);margin:18px 0}
+  .mini{font-size:11.5px;color:var(--ink-soft);margin-top:6px;line-height:1.45}
+  .mini.warn{color:var(--vermilion-deep);font-weight:500}
+
+  .result{overflow:hidden}
+  .result-head{background:var(--ink);color:#fbf9f3;padding:22px 24px 20px;position:relative}
+  .result-head::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;background:linear-gradient(90deg,var(--vermilion),var(--gold))}
+  .result-head .lab{font-size:12.5px;letter-spacing:.05em;opacity:.7;margin-bottom:6px}
+  .price-big{font-family:"DM Mono",monospace;font-weight:500;font-size:clamp(32px,6vw,48px);line-height:1;letter-spacing:-.02em}
+  .price-big .yen{color:var(--vermilion);font-size:.62em;margin-right:4px}
+  .price-sub{font-size:12.5px;opacity:.65;margin-top:8px;font-family:"DM Mono",monospace}
+  .breakdown{padding:6px 24px}
+  .row{display:flex;justify-content:space-between;align-items:baseline;padding:12px 0;border-bottom:1px dashed var(--line);gap:12px}
+  .row:last-child{border-bottom:none}
+  .row .k{font-size:13px;color:var(--ink-soft)}
+  .row .k b{color:var(--ink);font-weight:500}
+  .row .v{font-family:"DM Mono",monospace;font-size:15px;font-weight:500;white-space:nowrap}
+  .row.fee .v{color:var(--vermilion-deep)}
+  .row.profit{background:#f0f4ef;margin:6px -24px 0;padding:15px 24px;border:none;border-top:1px solid var(--line)}
+  .row.profit .k b{color:var(--green)}
+  .row.profit .v{color:var(--green);font-size:17px}
+  .pills{display:flex;gap:8px;padding:14px 24px 22px;flex-wrap:wrap}
+  .pill{font-family:"DM Mono",monospace;font-size:12px;background:#efeadf;border:1px solid var(--line);
+    border-radius:999px;padding:6px 12px;color:var(--ink-soft)}
+  .pill b{color:var(--ink)}
+
+  .batch-help{font-size:13px;color:var(--ink-soft);margin-bottom:12px;line-height:1.7}
+  .batch-help code{font-family:"DM Mono",monospace;background:#efeadf;padding:1px 6px;border-radius:5px;color:var(--vermilion-deep);font-size:12px}
+  textarea#raw{width:100%;min-height:150px;border:1.5px solid var(--line);border-radius:12px;background:#fff;
+    padding:13px;font-family:"DM Mono",monospace;font-size:13px;line-height:1.7;color:var(--ink);outline:none;resize:vertical}
+  textarea#raw:focus{border-color:var(--vermilion);box-shadow:0 0 0 3px rgba(217,68,47,.13)}
+  .btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+  .btn{font-family:"Noto Sans TC";font-weight:700;font-size:14px;border:none;cursor:pointer;padding:11px 20px;border-radius:11px;transition:.15s}
+  .btn-primary{background:var(--vermilion);color:#fff}
+  .btn-primary:hover{background:var(--vermilion-deep)}
+  .btn-ghost{background:#fff;border:1.5px solid var(--line);color:var(--ink)}
+  .btn-ghost:hover{border-color:var(--ink)}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+
+  .summary{display:flex;gap:10px;flex-wrap:wrap;margin:20px 0 12px}
+  .stat{background:var(--paper-2);border:1px solid var(--line);border-radius:12px;padding:12px 16px;flex:1;min-width:120px}
+  .stat .sl{font-size:11.5px;color:var(--ink-soft)}
+  .stat .sv{font-family:"DM Mono",monospace;font-size:20px;font-weight:500;margin-top:2px}
+  .stat .sv.green{color:var(--green)}
+
+  .tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:14px;margin-top:8px}
+  table{border-collapse:collapse;width:100%;font-size:13px;min-width:880px;background:var(--paper-2)}
+  th,td{padding:11px 13px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line)}
+  th:first-child,td:first-child{text-align:left;position:sticky;left:0;background:var(--paper-2)}
+  thead th{background:var(--ink);color:#fbf9f3;font-weight:500;font-size:12px}
+  thead th:first-child{background:var(--ink)}
+  tbody tr:nth-child(even) td{background:#f6f2ea}
+  tbody tr:nth-child(even) td:first-child{background:#f6f2ea}
+  td.num{font-family:"DM Mono",monospace}
+  td.price{font-family:"DM Mono",monospace;font-weight:500;color:var(--vermilion-deep)}
+  td.prof{font-family:"DM Mono",monospace;color:var(--green)}
+  td.bad{color:var(--vermilion-deep);font-weight:500;text-align:center}
+  .toast{font-size:12.5px;color:var(--green);font-weight:500;margin-top:8px;min-height:16px}
+
+  footer{margin-top:28px;font-size:12px;color:var(--ink-soft);line-height:1.7}
+  .hidden{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="kicker">日本 · TikTok Shop Pricing</div>
+    <h1>末售價計算機 <span class="jp">／ 価格設定</span></h1>
+    <p>抽成從末售價扣除,採除法還原。設定一次抽成與利潤,可單品試算,或批次貼上整批產品一次產出報價表。</p>
+  </header>
+
+  <div class="tabs">
+    <button id="tabSingle" class="on">單品試算</button>
+    <button id="tabBatch">批次報價</button>
+  </div>
+
+  <div class="grid">
+    <div class="card pad" id="settings">
+      <div class="panel-title"><span class="num">⚙</span>抽成與利潤(共用設定)</div>
+      <div class="twocol">
+        <div class="field">
+          <label>TikTok 平台</label>
+          <div class="input-row has-suffix"><input type="number" id="tiktokFee" value="15" min="0" step="0.5"><span class="suffix">%</span></div>
+        </div>
+        <div class="field">
+          <label>達人/直播 <span class="tag">預設</span></label>
+          <div class="input-row has-suffix"><input type="number" id="creatorFee" value="20" min="0" step="0.5"><span class="suffix">%</span></div>
+        </div>
+      </div>
+      <div class="field">
+        <label>其他費用 <span class="tag">／ 金流、消費税…</span></label>
+        <div class="input-row has-suffix"><input type="number" id="otherFee" value="0" min="0" step="0.5"><span class="suffix">%</span></div>
+      </div>
+      <div class="field">
+        <label>台灣營業稅 <span class="tag">／ 含稅,從實收內扣</span></label>
+        <div class="input-row has-suffix"><input type="number" id="vatTW" value="5" min="0" step="0.5"><span class="suffix">%</span></div>
+        <div class="mini">廠商開立含稅發票:營業稅 = 實收 × 5/105(內含),廠商實拿 = 實收 ÷ 1.05。<b>不影響末售價</b>,僅呈現廠商實拿。</div>
+      </div>
+      <div class="field">
+        <label>目標利潤</label>
+        <div class="seg" style="margin-bottom:8px">
+          <button data-profmode="margin" class="on">佔售價毛利率</button>
+          <button data-profmode="markup">佔成本加成</button>
+        </div>
+        <div class="input-row has-suffix"><input type="number" id="profit" value="25" min="0" step="1"><span class="suffix">%</span></div>
+        <div class="mini" id="profitHint"></div>
+      </div>
+      <div class="divider"></div>
+      <div class="field">
+        <label>匯率 <span class="tag">／ 1 TWD = ? JPY</span></label>
+        <div class="input-row has-prefix has-suffix"><span class="prefix">¥</span><input type="number" id="rate" value="5.0" min="0" step="0.01"><span class="suffix">JPY</span></div>
+        <div class="mini">參考約 1 台幣 ≈ 5.0 日圓,每日浮動。</div>
+      </div>
+      <div class="field" style="margin-top:16px">
+        <label>國際物流幣別</label>
+        <div class="seg">
+          <button data-shipcur="TWD" class="on">物流以 台幣 TWD</button>
+          <button data-shipcur="JPY">物流以 日圓 JPY</button>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="twocol">
+        <div class="field">
+          <label>日本在地運費</label>
+          <div class="input-row has-prefix has-suffix"><span class="prefix">¥</span><input type="number" id="localShip" value="600" min="0" step="10"><span class="suffix">JPY</span></div>
+        </div>
+        <div class="field">
+          <label>免運門檻</label>
+          <div class="input-row has-prefix has-suffix"><span class="prefix">¥</span><input type="number" id="freeThreshold" value="2000" min="0" step="100"><span class="suffix">JPY</span></div>
+        </div>
+      </div>
+      <div class="mini" style="margin-top:-6px">末售價 ≥ 門檻 → 買家免運、賣方吸收在地運費,並計入成本反推定價;低於門檻則買家自付、不計入。設 0 可關閉。</div>
+    </div>
+
+    <div id="singlePane">
+      <div class="card pad" style="margin-bottom:20px">
+        <div class="panel-title"><span class="num">1</span>單品成本</div>
+        <div class="twocol">
+          <div class="field">
+            <label>台灣售價</label>
+            <div class="input-row has-prefix has-suffix"><span class="prefix">NT$</span><input type="number" id="twPrice" value="300" min="0" step="1"><span class="suffix">TWD</span></div>
+          </div>
+          <div class="field">
+            <label>國際物流 <span class="tag">單件</span></label>
+            <div class="input-row has-prefix has-suffix"><span class="prefix" id="shipSym">NT$</span><input type="number" id="shipCost" value="120" min="0" step="1"><span class="suffix" id="shipCur">TWD</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="card result">
+        <div class="result-head">
+          <div class="lab">建議末售價(進位至 ¥10)</div>
+          <div class="price-big"><span class="yen">¥</span><span id="finalPrice">—</span></div>
+          <div class="price-sub" id="exactPrice"></div>
+        </div>
+        <div class="breakdown" id="breakdown"></div>
+        <div class="pills" id="pills"></div>
+      </div>
+    </div>
+
+    <div id="batchPane" class="hidden">
+      <div class="card pad">
+        <div class="panel-title"><span class="num">2</span>批次貼上產品</div>
+        <div class="batch-help">
+          每行一個產品,欄位用 <b>逗號</b> 或 <b>Tab</b>(可直接從 Excel 複製貼上)分隔:<br>
+          <code>產品名稱, 台灣售價, 國際物流, 達人抽成%(可省略)</code><br>
+          省略第 4 欄則套用左側預設達人抽成;想單獨調某產品就填第 4 欄。營業稅於實收端內扣,不影響末售價。
+        </div>
+        <textarea id="raw" spellcheck="false" placeholder="保濕面膜, 180, 90&#10;美容精華液, 650, 90, 25&#10;隨身風扇, 320, 140"></textarea>
+        <div class="btns">
+          <button class="btn btn-primary" id="genBtn">產生報價表</button>
+          <button class="btn btn-ghost" id="sampleBtn">載入範例</button>
+          <button class="btn btn-ghost" id="csvBtn" disabled>下載 CSV</button>
+          <button class="btn btn-ghost" id="copyBtn" disabled>複製表格(貼回 Excel)</button>
+        </div>
+        <div class="toast" id="toast"></div>
+        <div id="batchOut" class="hidden">
+          <div class="summary" id="summary"></div>
+          <div class="tbl-wrap"><table id="tbl"><thead></thead><tbody></tbody></table></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div>※ 總成本 = 台灣售價 + 國際物流 +(末售價達免運門檻時)日本在地運費,皆計入後反推末售價,自動進位 ¥10。廠商開立含稅發票後,營業稅 = 實收 × 5/105 內扣,廠商實拿 = 實收 ÷ 1.05、稅後淨利隨之降低,但末售價不變。</div>
+  </footer>
+</div>
+
+<script>
+(function(){
+  var shipCur="TWD", profMode="margin", lastRows=null;
+  var $=function(id){return document.getElementById(id)};
+  var fmt=function(n){return Math.round(n).toLocaleString("ja-JP")};
+  var fmt2=function(n){return (Math.round(n*100)/100).toLocaleString("ja-JP")};
+  var g=function(id){return +$(id).value||0};
+
+  function bindSeg(attr,cb){
+    document.querySelectorAll("[data-"+attr+"]").forEach(function(b){
+      b.addEventListener("click",function(){
+        b.parentElement.querySelectorAll("button").forEach(function(x){x.classList.remove("on")});
+        b.classList.add("on");cb(b.getAttribute("data-"+attr));
+      });
+    });
+  }
+  bindSeg("shipcur",function(v){shipCur=v;$("shipSym").textContent=(v==="JPY"?"¥":"NT$");$("shipCur").textContent=v;recalc();});
+  bindSeg("profmode",function(v){profMode=v;recalc();});
+
+  $("tabSingle").addEventListener("click",function(){
+    this.classList.add("on");$("tabBatch").classList.remove("on");
+    $("singlePane").classList.remove("hidden");$("batchPane").classList.add("hidden");
+  });
+  $("tabBatch").addEventListener("click",function(){
+    this.classList.add("on");$("tabSingle").classList.remove("on");
+    $("batchPane").classList.remove("hidden");$("singlePane").classList.add("hidden");
+  });
+
+  ["tiktokFee","creatorFee","otherFee","profit","rate","twPrice","shipCost","vatTW","localShip","freeThreshold"].forEach(function(id){
+    $(id).addEventListener("input",recalc);
+  });
+
+  function price(costJPY, creatorPct){
+    var feeRate=(g("tiktokFee")+creatorPct+g("otherFee"))/100;
+    var prof=g("profit")/100;
+    var vat=g("vatTW")/100, locShip=g("localShip"), thr=g("freeThreshold");
+    function solve(cost){
+      var denom;
+      if(profMode==="margin"){denom=1-feeRate-prof; if(denom<=0||cost<=0)return null; return cost/denom;}
+      denom=1-feeRate; if(denom<=0||cost<=0)return null; return cost*(1+prof)/denom;
+    }
+    var baseExact=solve(costJPY); if(baseExact===null)return null;
+    var basePrice=Math.ceil(baseExact/10)*10;
+    var applyShip=(basePrice>=thr && locShip>0);   // 免運門檻以上才吸收在地運費
+    var totalCost=costJPY+(applyShip?locShip:0);
+    var exact=solve(totalCost); if(exact===null)return null;
+    var p=Math.ceil(exact/10)*10;
+    var feeAmt=p*feeRate, net=p-feeAmt;
+    var tax=net*vat/(1+vat);        // 含稅內扣:稅 = 實收 × 5/105
+    var vendorNet=net-tax;          // 廠商實拿 = 實收 ÷ 1.05
+    var profit=vendorNet-totalCost; // 稅後真實淨利(已含在地運費)
+    return {exact:exact,price:p,feeRate:feeRate,feeAmt:feeAmt,net:net,tax:tax,vendorNet:vendorNet,
+      profit:profit,margin:profit/p*100,markup:profit/totalCost*100,
+      localShip:(applyShip?locShip:0),productCost:costJPY,totalCost:totalCost};
+  }
+
+  function recalc(){
+    $("profitHint").textContent = profMode==="margin"
+      ? "毛利率 = 淨利 ÷ 末售價。例:25% = 每賣 ¥100 自己留 ¥25。"
+      : "成本加成 = 淨利 ÷ 成本。例:25% = 在成本上再賺 25%。";
+    var rate=g("rate");
+    var twBase=g("twPrice");
+    var shipJPY=(shipCur==="JPY"?g("shipCost"):g("shipCost")*rate);
+    var costJPY=twBase*rate+shipJPY;
+    var r=price(costJPY,g("creatorFee"));
+    if(!r){
+      $("finalPrice").textContent="—";
+      $("exactPrice").textContent=costJPY<=0?"請先輸入成本":"抽成+利潤≥100%,請調低";
+      $("breakdown").innerHTML="";$("pills").innerHTML="";return;
+    }
+    $("finalPrice").textContent=fmt(r.price);
+    $("exactPrice").textContent="精算 ¥"+fmt(r.exact)+" ・ 約 NT$"+fmt(r.price/(rate||1));
+    var tk=r.price*g("tiktokFee")/100, cr=r.price*g("creatorFee")/100, ot=r.price*g("otherFee")/100;
+    var h="";
+    h+='<div class="row"><span class="k">台灣售價</span><span class="v">¥'+fmt(twBase*rate)+'</span></div>';
+    h+='<div class="row"><span class="k">國際物流</span><span class="v">¥'+fmt(shipJPY)+'</span></div>';
+    if(r.localShip>0)h+='<div class="row"><span class="k">日本在地運費 <b>(免運吸收)</b></span><span class="v">¥'+fmt(r.localShip)+'</span></div>';
+    h+='<div class="row"><span class="k"><b>總成本</b></span><span class="v">¥'+fmt(r.totalCost)+'</span></div>';
+    if(r.localShip===0 && g("localShip")>0)h+='<div class="row"><span class="k mini">末售價 < ¥'+fmt(g("freeThreshold"))+',買家自付運費,未計入</span><span class="v"></span></div>';
+    h+='<div class="row fee"><span class="k">TikTok 抽成 <b>'+$("tiktokFee").value+'%</b></span><span class="v">−¥'+fmt(tk)+'</span></div>';
+    h+='<div class="row fee"><span class="k">達人/直播 <b>'+$("creatorFee").value+'%</b></span><span class="v">−¥'+fmt(cr)+'</span></div>';
+    if(ot>0)h+='<div class="row fee"><span class="k">其他費用 <b>'+$("otherFee").value+'%</b></span><span class="v">−¥'+fmt(ot)+'</span></div>';
+    h+='<div class="row"><span class="k"><b>實收金額</b>(扣抽成後)</span><span class="v">¥'+fmt(r.net)+'</span></div>';
+    if(r.tax>0)h+='<div class="row fee"><span class="k">內含台灣營業稅 <b>'+$("vatTW").value+'%</b>(×5/105)</span><span class="v">−¥'+fmt(r.tax)+'</span></div>';
+    h+='<div class="row"><span class="k"><b>廠商實拿</b></span><span class="v">¥'+fmt(r.vendorNet)+'</span></div>';
+    h+='<div class="row profit"><span class="k"><b>預估淨利</b>(稅後)</span><span class="v">¥'+fmt(r.profit)+'</span></div>';
+    $("breakdown").innerHTML=h;
+    $("pills").innerHTML='<span class="pill">稅後毛利率 <b>'+fmt2(r.margin)+'%</b></span>'+
+      '<span class="pill">成本加成 <b>'+fmt2(r.markup)+'%</b></span>'+
+      '<span class="pill">抽成合計 <b>'+fmt2(r.feeRate*100)+'%</b></span>';
+  }
+
+  function parseNum(s){return parseFloat(String(s).replace(/[^0-9.\-]/g,""))}
+  function parseRows(text){
+    var out=[];
+    text.split(/\r?\n/).forEach(function(line){
+      if(!line.trim())return;
+      var cells=(line.indexOf("\t")>=0?line.split("\t"):line.split(",")).map(function(c){return c.trim()});
+      var tw=parseNum(cells[1]);
+      if(isNaN(tw))return;
+      out.push({
+        name:cells[0]||"(未命名)",tw:tw,
+        ship:isNaN(parseNum(cells[2]))?0:parseNum(cells[2]),
+        creator:(cells[3]!==undefined&&cells[3]!==""&&!isNaN(parseNum(cells[3])))?parseNum(cells[3]):null
+      });
+    });
+    return out;
+  }
+  function esc(s){return String(s).replace(/[&<>]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;"}[c]})}
+
+  function genTable(){
+    var rows=parseRows($("raw").value);
+    if(!rows.length){flash("沒有可解析的資料,請檢查格式",true);$("batchOut").classList.add("hidden");
+      $("csvBtn").disabled=$("copyBtn").disabled=true;return;}
+    var rate=g("rate"), defC=g("creatorFee");
+    var data=rows.map(function(r){
+      var shipJPY=(shipCur==="JPY"?r.ship:r.ship*rate);
+      var costJPY=r.tw*rate+shipJPY;
+      var c=(r.creator===null?defC:r.creator);
+      return {name:r.name,tw:r.tw,ship:r.ship,costJPY:costJPY,creator:c,res:price(costJPY,c)};
+    });
+    lastRows=data;
+    var heads=["產品","達人%","商品成本¥","在地運費¥","末售價¥","實收¥","營業稅¥","廠商實拿¥","淨利¥","毛利率%"];
+    $("tbl").querySelector("thead").innerHTML="<tr>"+heads.map(function(h){return "<th>"+h+"</th>"}).join("")+"</tr>";
+    var body="";
+    data.forEach(function(d){
+      var lead='<tr><td>'+esc(d.name)+'</td><td class="num">'+fmt2(d.creator)+'</td><td class="num">'+fmt(d.costJPY)+'</td>';
+      if(!d.res){ body+=lead+'<td class="bad" colspan="7">抽成+利潤≥100%,無法定價</td></tr>'; return; }
+      body+=lead+
+        '<td class="num">'+fmt(d.res.localShip)+'</td>'+
+        '<td class="price">'+fmt(d.res.price)+'</td><td class="num">'+fmt(d.res.net)+'</td>'+
+        '<td class="num">'+fmt(d.res.tax)+'</td><td class="num">'+fmt(d.res.vendorNet)+'</td>'+
+        '<td class="prof">'+fmt(d.res.profit)+'</td><td class="num">'+fmt2(d.res.margin)+'</td></tr>';
+    });
+    $("tbl").querySelector("tbody").innerHTML=body;
+    var valid=data.filter(function(d){return d.res});
+    var totProfit=valid.reduce(function(a,d){return a+d.res.profit},0);
+    var totTax=valid.reduce(function(a,d){return a+d.res.tax},0);
+    var totLoc=valid.reduce(function(a,d){return a+d.res.localShip},0);
+    var avgM=valid.length?valid.reduce(function(a,d){return a+d.res.margin},0)/valid.length:0;
+    $("summary").innerHTML=
+      '<div class="stat"><div class="sl">產品數</div><div class="sv">'+data.length+'</div></div>'+
+      '<div class="stat"><div class="sl">平均稅後毛利率</div><div class="sv green">'+fmt2(avgM)+'%</div></div>'+
+      '<div class="stat"><div class="sl">單件淨利合計(稅後)</div><div class="sv green">¥'+fmt(totProfit)+'</div></div>'+
+      '<div class="stat"><div class="sl">單件營業稅合計</div><div class="sv">¥'+fmt(totTax)+'</div></div>'+
+      '<div class="stat"><div class="sl">單件在地運費合計</div><div class="sv">¥'+fmt(totLoc)+'</div></div>';
+    $("batchOut").classList.remove("hidden");
+    $("csvBtn").disabled=$("copyBtn").disabled=false;
+    flash("已產生 "+data.length+" 筆報價",false);
+  }
+
+  function buildMatrix(){
+    var head=["產品","台灣售價(TWD)","物流","商品成本(JPY)","達人%","在地運費(JPY)","末售價(JPY)","實收(JPY)","營業稅(JPY)","廠商實拿(JPY)","稅後淨利(JPY)","毛利率%"];
+    var lines=[head];
+    lastRows.forEach(function(d){
+      lines.push(d.res
+        ? [d.name,d.tw,d.ship,Math.round(d.costJPY),d.creator,Math.round(d.res.localShip),d.res.price,Math.round(d.res.net),Math.round(d.res.tax),Math.round(d.res.vendorNet),Math.round(d.res.profit),Math.round(d.res.margin*100)/100]
+        : [d.name,d.tw,d.ship,Math.round(d.costJPY),d.creator,"","無法定價","","","","",""]);
+    });
+    return lines;
+  }
+  function doCsv(){
+    var lines=buildMatrix().map(function(r){return r.map(function(c){
+      var s=String(c);return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}).join(",")}).join("\n");
+    var blob=new Blob(["\ufeff"+lines],{type:"text/csv;charset=utf-8"});
+    var a=document.createElement("a");a.href=URL.createObjectURL(blob);
+    a.download="tk-報價表.csv";document.body.appendChild(a);a.click();
+    setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},100);
+    flash("CSV 已下載",false);
+  }
+  function doCopy(){
+    var tsv=buildMatrix().map(function(r){return r.join("\t")}).join("\n");
+    var done=function(){flash("已複製,可直接貼到 Excel / Google 試算表",false)};
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(tsv).then(done,function(){fallbackCopy(tsv,done)});
+    }else fallbackCopy(tsv,done);
+  }
+  function fallbackCopy(t,cb){
+    var ta=document.createElement("textarea");ta.value=t;ta.style.position="fixed";ta.style.opacity="0";
+    document.body.appendChild(ta);ta.select();try{document.execCommand("copy");cb()}catch(e){flash("複製失敗,請手動選取",true)}ta.remove();
+  }
+  var toastTimer;
+  function flash(msg,bad){var t=$("toast");t.textContent=msg;t.style.color=bad?"var(--vermilion-deep)":"var(--green)";
+    clearTimeout(toastTimer);toastTimer=setTimeout(function(){t.textContent=""},3500);}
+
+  $("genBtn").addEventListener("click",genTable);
+  $("csvBtn").addEventListener("click",doCsv);
+  $("copyBtn").addEventListener("click",doCopy);
+  $("sampleBtn").addEventListener("click",function(){
+    $("raw").value="保濕面膜, 180, 90\n美容精華液, 650, 90, 25\n隨身風扇, 320, 140\n寵物零食, 220, 110, 18";
+    genTable();
+  });
+
+  recalc();
+})();
+</script>
+</body>
+</html>
