@@ -283,7 +283,7 @@
           </div>
           <div class="field">
             <label>國際物流 <span class="tag">賣家吸收,消費者免運</span></label>
-            <div class="input-row has-prefix has-suffix"><span class="prefix">¥</span><input type="number" id="rvShip" value="250" min="0" step="10"><span class="suffix">JPY</span></div>
+            <div class="input-row has-prefix has-suffix"><span class="prefix">NT$</span><input type="number" id="rvShip" value="250" min="0" step="10"><span class="suffix">TWD</span></div>
           </div>
         </div>
         <div class="field">
@@ -419,7 +419,7 @@
     var rate=+$("rvRate").value||0;
     var tkPct=+$("rvTiktok").value||0, crPct=+$("rvCreator").value||0;
     var vat=(+$("rvVat").value||0)/100;
-    var ship=+$("rvShip").value||0;             // 國際物流,賣家吸收,不從廠商實拿扣
+    var shipTW=+$("rvShip").value||0;            // 國際物流,TWD,賣家吸收
     var markup=(+$("rvMarkup").value||0)/100;
     var feeRate=(tkPct+crPct)/100;
 
@@ -428,50 +428,49 @@
       $("rvFloorBreak").innerHTML="";$("rvSellPrice").textContent="—";$("rvSellBreak").innerHTML="";$("rvPills").innerHTML="";
       return;
     }
-    var targetJPY=targetTW*rate;                // 目標實拿換算日圓
-    var net=targetJPY*(1+vat);                  // 反推含稅前實收(實拿=實收÷1.05)
-    var sellExact=net/(1-feeRate);              // 反推扣抽成前的末售價(未含物流)
-    var floorExact=sellExact;                   // 物流是賣家成本,不影響「給廠商多少」這條反推,只影響賣家自己淨不淨
-    var floor=Math.ceil(floorExact/10)*10;       // 至少要賣多少(進位,確保不低於底價)
+    var targetJPY=targetTW*rate;                 // 廠商目標實拿,換日圓
+    var shipJPY=shipTW*rate;                      // 國際物流,換日圓(賣家成本,不含稅還原)
+    var vendorNetBeforeTax=targetJPY*(1+vat);     // 還原含稅前實收(僅針對廠商那筆,實拿=實收÷1.05)
+    var cashNeeded=vendorNetBeforeTax+shipJPY;    // 賣家扣完抽成後,手上至少要留這麼多現金:付給廠商+付物流
+    var floorExact=cashNeeded/(1-feeRate);        // 還原扣抽成前的末售價
+    var floor=Math.ceil(floorExact/10)*10;        // 至少要賣多少(進位,確保不低於底價)
 
-    // 用進位後價格回推實際數字(可能比目標多一點點,因為進位)
-    var fNet=floor*(1-feeRate), fTax=fNet*vat/(1+vat), fVendor=fNet-fTax;
-    var fCompanyBeforeShip=fNet-fTax-0; // 公司在這個底價拿到的,等於 fVendor 全部給廠商,公司賺0,但要先扣物流
-    var fCompanyNet=-ship;               // 底價情境:公司沒留利潤,還倒貼物流
+    var fNet=floor*(1-feeRate);                   // 進位後實收
+    var fTax=vendorNetBeforeTax*vat/(1+vat);       // 廠商那筆內含的稅(以精算目標為準,不隨進位誤差變動)
+    var fVendor=targetJPY;                         // 廠商實拿就是目標本身(底價就是為了剛好達成這個數字而設)
+    var fLeftover=fNet-vendorNetBeforeTax-shipJPY; // 進位多出來的零頭,留在賣家手上
 
     $("rvFloorPrice").textContent=fmt(floor);
-    $("rvFloorSub").textContent="精算 ¥"+fmt(floorExact)+" ・ 約 NT$"+fmt(floor/rate);
+    $("rvFloorSub").textContent="精算 ¥"+fmt(floorExact)+" ・ 約 NT$"+fmt2(floor/rate);
     var bh="";
     bh+='<div class="row"><span class="k">廠商目標實拿(含稅)</span><span class="v">NT$'+fmt2(targetTW)+' ・ ¥'+fmt(targetJPY)+'</span></div>';
-    bh+='<div class="row"><span class="k">還原含稅前實收 <b>(×1.05)</b></span><span class="v">¥'+fmt(net)+'</span></div>';
+    bh+='<div class="row"><span class="k">還原含稅前實收 <b>(×1.05)</b></span><span class="v">¥'+fmt(vendorNetBeforeTax)+'</span></div>';
+    bh+='<div class="row"><span class="k">國際物流(賣家吸收) <b>NT$'+fmt2(shipTW)+'</b></span><span class="v">¥'+fmt(shipJPY)+'</span></div>';
+    bh+='<div class="row"><span class="k"><b>扣抽成後至少需保留</b></span><span class="v">¥'+fmt(cashNeeded)+'</span></div>';
     bh+='<div class="row"><span class="k">還原抽成前末售價 <b>(÷(1−'+fmt2(feeRate*100)+'%))</b></span><span class="v">¥'+fmt(floorExact)+'</span></div>';
     bh+='<div class="row"><span class="k"><b>底價(進位 ¥10)</b></span><span class="v">¥'+fmt(floor)+'</span></div>';
     bh+='<div class="row fee"><span class="k">TikTok 抽成 <b>'+fmt2(tkPct)+'%</b></span><span class="v">−¥'+fmt(floor*tkPct/100)+'</span></div>';
     bh+='<div class="row fee"><span class="k">達人/直播 <b>'+fmt2(crPct)+'%</b></span><span class="v">−¥'+fmt(floor*crPct/100)+'</span></div>';
     bh+='<div class="row"><span class="k">實收</span><span class="v">¥'+fmt(fNet)+'</span></div>';
-    bh+='<div class="row fee"><span class="k">內含營業稅 <b>(×'+fmt2(vat*100)+'/'+(100+vat*100)+')</b></span><span class="v">−¥'+fmt(fTax)+'</span></div>';
-    bh+='<div class="row"><span class="k"><b>廠商實拿</b></span><span class="v">¥'+fmt(fVendor)+' ・ 約 NT$'+fmt2(fVendor/rate)+'</span></div>';
-    bh+='<div class="row fee"><span class="k">國際物流(賣家吸收,免運給消費者)</span><span class="v">−¥'+fmt(ship)+'</span></div>';
-    bh+='<div class="row profit"><span class="k"><b>公司在底價的損益</b></span><span class="v">−¥'+fmt(ship)+'(尚未加利潤)</span></div>';
+    bh+='<div class="row fee"><span class="k">付給廠商(含稅,即目標)</span><span class="v">−¥'+fmt(targetJPY)+' ・ NT$'+fmt2(targetTW)+'</span></div>';
+    bh+='<div class="row fee"><span class="k">付國際物流</span><span class="v">−¥'+fmt(shipJPY)+'</span></div>';
+    bh+='<div class="row profit"><span class="k"><b>公司在底價的損益</b>(進位多出的零頭)</span><span class="v">¥'+fmt(fLeftover)+'</span></div>';
     $("rvFloorBreak").innerHTML=bh;
 
-    // 實際建議售價 = 底價再墊高 markup%,墊高部分過抽成後才是公司淨利
+    // 實際建議售價 = 底價再墊高 markup%,墊高部分過抽成後才是公司淨利(廠商實拿不變)
     var sellExact2=floor*(1+markup);
     var sell=Math.ceil(sellExact2/10)*10;
-    var sNet=sell*(1-feeRate), sTax=sNet*vat/(1+vat), sVendor=sNet-sTax;
-    // 公司利潤 = 公司實收的部分(sell的抽成後金額減去要給廠商的fVendor)再扣物流
-    // 注意:廠商實拿是依「底價」邏輯算的固定數字fVendor,售價墊高的部分,抽成一樣會被扣,墊高部分扣完才是公司的
-    var companyProfit=(sell-floor)*(1-feeRate)-ship; // 墊高部分扣完抽成,再扣掉賣家自付物流
+    var companyProfit=(sell-floor)*(1-feeRate)+fLeftover; // 墊高部分扣完抽成 + 底價本身進位多出的零頭
     var companyMargin=companyProfit/sell*100;
 
     $("rvSellPrice").textContent=fmt(sell);
     $("rvSellSub").textContent="底價 ¥"+fmt(floor)+" × (1+"+fmt2(markup*100)+"%) → 進位 ¥"+fmt(sell);
     var sh="";
-    sh+='<div class="row"><span class="k">底價(給廠商用)</span><span class="v">¥'+fmt(floor)+'</span></div>';
+    sh+='<div class="row"><span class="k">底價(剛好給廠商目標)</span><span class="v">¥'+fmt(floor)+'</span></div>';
     sh+='<div class="row"><span class="k">公司加價 <b>'+fmt2(markup*100)+'%</b></span><span class="v">+¥'+fmt(sell-floor)+'</span></div>';
     sh+='<div class="row"><span class="k"><b>實際售價</b></span><span class="v">¥'+fmt(sell)+'</span></div>';
-    sh+='<div class="row"><span class="k">付給廠商(實拿,含稅)</span><span class="v">¥'+fmt(fVendor)+' ・ NT$'+fmt2(fVendor/rate)+'</span></div>';
-    sh+='<div class="row fee"><span class="k">國際物流(賣家吸收)</span><span class="v">−¥'+fmt(ship)+'</span></div>';
+    sh+='<div class="row"><span class="k">付給廠商(實拿,含稅,不受加價影響)</span><span class="v">¥'+fmt(targetJPY)+' ・ NT$'+fmt2(targetTW)+'</span></div>';
+    sh+='<div class="row fee"><span class="k">付國際物流</span><span class="v">−¥'+fmt(shipJPY)+'</span></div>';
     sh+='<div class="row profit"><span class="k"><b>公司淨利</b></span><span class="v">¥'+fmt(companyProfit)+'</span></div>';
     $("rvSellBreak").innerHTML=sh;
     $("rvPills").innerHTML='<span class="pill">公司毛利率 <b>'+fmt2(companyMargin)+'%</b></span>'+
