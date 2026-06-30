@@ -140,6 +140,7 @@
   <div class="tabs">
     <button id="tabSingle" class="on">單品試算</button>
     <button id="tabBatch">批次報價</button>
+    <button id="tabReverse">反推實拿</button>
   </div>
 
   <div class="grid">
@@ -247,6 +248,70 @@
         </div>
       </div>
     </div>
+
+    <div id="reversePane" class="hidden">
+      <div class="card pad" style="margin-bottom:20px">
+        <div class="panel-title"><span class="num">3</span>廠商目標實拿(反推底價)</div>
+        <div class="batch-help">
+          輸入廠商要求的<b>實拿台幣(含稅)</b>,系統反推「至少要賣多少日圓,廠商扣完抽成、開完稅,剛好拿到這個數字」。<br>
+          這組抽成是獨立設定(不影響上方單品/批次的共用設定),因為個案常常費率不同。國際物流由賣家(你)吸收,<b>不</b>從廠商實拿裡扣。
+        </div>
+        <div class="twocol" style="margin-top:18px">
+          <div class="field">
+            <label>廠商目標實拿 <span class="tag">含稅</span></label>
+            <div class="input-row has-prefix has-suffix"><span class="prefix">NT$</span><input type="number" id="rvTarget" value="415" min="0" step="1"><span class="suffix">TWD</span></div>
+          </div>
+          <div class="field">
+            <label>匯率 <span class="tag">1 TWD = ? JPY</span></label>
+            <div class="input-row has-prefix has-suffix"><span class="prefix">¥</span><input type="number" id="rvRate" value="5.0" min="0" step="0.01"><span class="suffix">JPY</span></div>
+          </div>
+        </div>
+        <div class="twocol">
+          <div class="field">
+            <label>平台抽成</label>
+            <div class="input-row has-suffix"><input type="number" id="rvTiktok" value="7" min="0" step="0.5"><span class="suffix">%</span></div>
+          </div>
+          <div class="field">
+            <label>達人/直播 行銷</label>
+            <div class="input-row has-suffix"><input type="number" id="rvCreator" value="20" min="0" step="0.5"><span class="suffix">%</span></div>
+          </div>
+        </div>
+        <div class="twocol">
+          <div class="field">
+            <label>台灣營業稅 <span class="tag">含稅內扣</span></label>
+            <div class="input-row has-suffix"><input type="number" id="rvVat" value="5" min="0" step="0.5"><span class="suffix">%</span></div>
+          </div>
+          <div class="field">
+            <label>國際物流 <span class="tag">賣家吸收,消費者免運</span></label>
+            <div class="input-row has-prefix has-suffix"><span class="prefix">¥</span><input type="number" id="rvShip" value="250" min="0" step="10"><span class="suffix">JPY</span></div>
+          </div>
+        </div>
+        <div class="field">
+          <label>公司想多賺 <span class="tag">／ 加在底價之上,過抽成後才是你的淨利</span></label>
+          <div class="input-row has-suffix"><input type="number" id="rvMarkup" value="0" min="0" step="1"><span class="suffix">%</span></div>
+          <div class="mini">0% = 剛好給廠商目標、公司不賺差額;設 10% 等於把底價墊高 10% 再賣,墊高部分扣完抽成後才是公司淨利。</div>
+        </div>
+      </div>
+
+      <div class="card result">
+        <div class="result-head">
+          <div class="lab">最低可行末售價(剛好給廠商實拿目標)</div>
+          <div class="price-big"><span class="yen">¥</span><span id="rvFloorPrice">—</span></div>
+          <div class="price-sub" id="rvFloorSub"></div>
+        </div>
+        <div class="breakdown" id="rvFloorBreak"></div>
+      </div>
+
+      <div class="card result" id="rvSellCard" style="margin-top:20px">
+        <div class="result-head" style="background:var(--vermilion-deep)">
+          <div class="lab">實際建議售價(含公司利潤)</div>
+          <div class="price-big"><span class="yen">¥</span><span id="rvSellPrice">—</span></div>
+          <div class="price-sub" id="rvSellSub"></div>
+        </div>
+        <div class="breakdown" id="rvSellBreak"></div>
+        <div class="pills" id="rvPills"></div>
+      </div>
+    </div>
   </div>
 
   <footer>
@@ -273,13 +338,15 @@
   bindSeg("shipcur",function(v){shipCur=v;$("shipSym").textContent=(v==="JPY"?"¥":"NT$");$("shipCur").textContent=v;recalc();});
   bindSeg("profmode",function(v){profMode=v;recalc();});
 
-  $("tabSingle").addEventListener("click",function(){
-    this.classList.add("on");$("tabBatch").classList.remove("on");
-    $("singlePane").classList.remove("hidden");$("batchPane").classList.add("hidden");
-  });
-  $("tabBatch").addEventListener("click",function(){
-    this.classList.add("on");$("tabSingle").classList.remove("on");
-    $("batchPane").classList.remove("hidden");$("singlePane").classList.add("hidden");
+  var tabs={tabSingle:"singlePane",tabBatch:"batchPane",tabReverse:"reversePane"};
+  Object.keys(tabs).forEach(function(tid){
+    $(tid).addEventListener("click",function(){
+      Object.keys(tabs).forEach(function(t){
+        $(t).classList.toggle("on",t===tid);
+        $(tabs[t]).classList.toggle("hidden",t!==tid);
+      });
+      if(tid==="tabReverse")rvCalc();
+    });
   });
 
   ["tiktokFee","creatorFee","otherFee","profit","rate","twPrice","shipCost","vatTW","localShip","freeThreshold"].forEach(function(id){
@@ -346,7 +413,74 @@
       '<span class="pill">抽成合計 <b>'+fmt2(r.feeRate*100)+'%</b></span>';
   }
 
-  function parseNum(s){return parseFloat(String(s).replace(/[^0-9.\-]/g,""))}
+  // ---- reverse mode: solve sell price from vendor's target net payout ----
+  function rvCalc(){
+    var targetTW=+$("rvTarget").value||0;       // 廠商目標實拿,含稅,TWD
+    var rate=+$("rvRate").value||0;
+    var tkPct=+$("rvTiktok").value||0, crPct=+$("rvCreator").value||0;
+    var vat=(+$("rvVat").value||0)/100;
+    var ship=+$("rvShip").value||0;             // 國際物流,賣家吸收,不從廠商實拿扣
+    var markup=(+$("rvMarkup").value||0)/100;
+    var feeRate=(tkPct+crPct)/100;
+
+    if(targetTW<=0||rate<=0||feeRate>=1){
+      $("rvFloorPrice").textContent="—";$("rvFloorSub").textContent="請確認輸入";
+      $("rvFloorBreak").innerHTML="";$("rvSellPrice").textContent="—";$("rvSellBreak").innerHTML="";$("rvPills").innerHTML="";
+      return;
+    }
+    var targetJPY=targetTW*rate;                // 目標實拿換算日圓
+    var net=targetJPY*(1+vat);                  // 反推含稅前實收(實拿=實收÷1.05)
+    var sellExact=net/(1-feeRate);              // 反推扣抽成前的末售價(未含物流)
+    var floorExact=sellExact;                   // 物流是賣家成本,不影響「給廠商多少」這條反推,只影響賣家自己淨不淨
+    var floor=Math.ceil(floorExact/10)*10;       // 至少要賣多少(進位,確保不低於底價)
+
+    // 用進位後價格回推實際數字(可能比目標多一點點,因為進位)
+    var fNet=floor*(1-feeRate), fTax=fNet*vat/(1+vat), fVendor=fNet-fTax;
+    var fCompanyBeforeShip=fNet-fTax-0; // 公司在這個底價拿到的,等於 fVendor 全部給廠商,公司賺0,但要先扣物流
+    var fCompanyNet=-ship;               // 底價情境:公司沒留利潤,還倒貼物流
+
+    $("rvFloorPrice").textContent=fmt(floor);
+    $("rvFloorSub").textContent="精算 ¥"+fmt(floorExact)+" ・ 約 NT$"+fmt(floor/rate);
+    var bh="";
+    bh+='<div class="row"><span class="k">廠商目標實拿(含稅)</span><span class="v">NT$'+fmt2(targetTW)+' ・ ¥'+fmt(targetJPY)+'</span></div>';
+    bh+='<div class="row"><span class="k">還原含稅前實收 <b>(×1.05)</b></span><span class="v">¥'+fmt(net)+'</span></div>';
+    bh+='<div class="row"><span class="k">還原抽成前末售價 <b>(÷(1−'+fmt2(feeRate*100)+'%))</b></span><span class="v">¥'+fmt(floorExact)+'</span></div>';
+    bh+='<div class="row"><span class="k"><b>底價(進位 ¥10)</b></span><span class="v">¥'+fmt(floor)+'</span></div>';
+    bh+='<div class="row fee"><span class="k">TikTok 抽成 <b>'+fmt2(tkPct)+'%</b></span><span class="v">−¥'+fmt(floor*tkPct/100)+'</span></div>';
+    bh+='<div class="row fee"><span class="k">達人/直播 <b>'+fmt2(crPct)+'%</b></span><span class="v">−¥'+fmt(floor*crPct/100)+'</span></div>';
+    bh+='<div class="row"><span class="k">實收</span><span class="v">¥'+fmt(fNet)+'</span></div>';
+    bh+='<div class="row fee"><span class="k">內含營業稅 <b>(×'+fmt2(vat*100)+'/'+(100+vat*100)+')</b></span><span class="v">−¥'+fmt(fTax)+'</span></div>';
+    bh+='<div class="row"><span class="k"><b>廠商實拿</b></span><span class="v">¥'+fmt(fVendor)+' ・ 約 NT$'+fmt2(fVendor/rate)+'</span></div>';
+    bh+='<div class="row fee"><span class="k">國際物流(賣家吸收,免運給消費者)</span><span class="v">−¥'+fmt(ship)+'</span></div>';
+    bh+='<div class="row profit"><span class="k"><b>公司在底價的損益</b></span><span class="v">−¥'+fmt(ship)+'(尚未加利潤)</span></div>';
+    $("rvFloorBreak").innerHTML=bh;
+
+    // 實際建議售價 = 底價再墊高 markup%,墊高部分過抽成後才是公司淨利
+    var sellExact2=floor*(1+markup);
+    var sell=Math.ceil(sellExact2/10)*10;
+    var sNet=sell*(1-feeRate), sTax=sNet*vat/(1+vat), sVendor=sNet-sTax;
+    // 公司利潤 = 公司實收的部分(sell的抽成後金額減去要給廠商的fVendor)再扣物流
+    // 注意:廠商實拿是依「底價」邏輯算的固定數字fVendor,售價墊高的部分,抽成一樣會被扣,墊高部分扣完才是公司的
+    var companyProfit=(sell-floor)*(1-feeRate)-ship; // 墊高部分扣完抽成,再扣掉賣家自付物流
+    var companyMargin=companyProfit/sell*100;
+
+    $("rvSellPrice").textContent=fmt(sell);
+    $("rvSellSub").textContent="底價 ¥"+fmt(floor)+" × (1+"+fmt2(markup*100)+"%) → 進位 ¥"+fmt(sell);
+    var sh="";
+    sh+='<div class="row"><span class="k">底價(給廠商用)</span><span class="v">¥'+fmt(floor)+'</span></div>';
+    sh+='<div class="row"><span class="k">公司加價 <b>'+fmt2(markup*100)+'%</b></span><span class="v">+¥'+fmt(sell-floor)+'</span></div>';
+    sh+='<div class="row"><span class="k"><b>實際售價</b></span><span class="v">¥'+fmt(sell)+'</span></div>';
+    sh+='<div class="row"><span class="k">付給廠商(實拿,含稅)</span><span class="v">¥'+fmt(fVendor)+' ・ NT$'+fmt2(fVendor/rate)+'</span></div>';
+    sh+='<div class="row fee"><span class="k">國際物流(賣家吸收)</span><span class="v">−¥'+fmt(ship)+'</span></div>';
+    sh+='<div class="row profit"><span class="k"><b>公司淨利</b></span><span class="v">¥'+fmt(companyProfit)+'</span></div>';
+    $("rvSellBreak").innerHTML=sh;
+    $("rvPills").innerHTML='<span class="pill">公司毛利率 <b>'+fmt2(companyMargin)+'%</b></span>'+
+      '<span class="pill">抽成合計 <b>'+fmt2(feeRate*100)+'%</b></span>'+
+      '<span class="pill">廠商實拿不受加價影響</span>';
+  }
+  ["rvTarget","rvRate","rvTiktok","rvCreator","rvVat","rvShip","rvMarkup"].forEach(function(id){
+    $(id).addEventListener("input",rvCalc);
+  });
   function parseRows(text){
     var out=[];
     text.split(/\r?\n/).forEach(function(line){
@@ -448,6 +582,7 @@
   });
 
   recalc();
+  rvCalc();
 })();
 </script>
 </body>
